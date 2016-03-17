@@ -234,10 +234,8 @@ class Main {
             array_pop($rightLec);
         }
         $leftN = currOperator($leftLec);
-        //непоняточки
         $leftP = $leftLec[$leftN];
         $rightN = currOperator($rightLec);
-        //непоняточки
         $rightP = $rightLec[$rightN];                
         $trio = trioBuild($arLec, $leftLec, $rightLec, $topP, $leftP, $rightP, NULL);
         $arNode = $trio;
