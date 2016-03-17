@@ -1,6 +1,5 @@
 <?php
 include_once('#three.php');
-$globalargs = array();
 function Ariphmetic(){
     $arRes=array();
     $arArgs = func_get_args();
