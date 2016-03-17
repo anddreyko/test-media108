@@ -16,17 +16,16 @@ function Ariphmetic(){
     if($isEqualArrs){
         $parse = new Main();
         // задаем исходное математическое выражение
-        $str = (func_get_arg($countArgs-1));
+        $str = func_get_arg($countArgs-1);
         // строительство дерева классов
         $parse->Build($str);
         for($i=0;$i<$countArr;$i++){
             $a = func_get_arg(0)[$i];
             $b = func_get_arg(1)[$i];
             $c = func_get_arg(2)[$i];
-            //решаем
-            echo $str.' = '.$parse->Calculate($a, $b).'<br>';
-
-            echo ' при: a='.$a.'; b='.$b.'; c='.$c.'<br>'.'<br>';
+            //решаем и выводим ответ
+            echo $str.' = '.$parse->Calculate($a, $b, $c).'<br>'
+               .' при: a='.$a.'; b='.$b.'; c='.$c.'<br>'.'<br>';
         }
     }
     else{
