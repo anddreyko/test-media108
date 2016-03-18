@@ -2,6 +2,7 @@
 function Ariphmetic($arr,$exp){
     $countArr = 0;
     $isEqualArrs=false;
+    $parse;
     //выясняем равность количества элементов в массивах с данными
     foreach($arr as $a){
         if($isEqualArrs&&$countArr!=count($a)){

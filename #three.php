@@ -16,187 +16,187 @@ class Main {
             if(!$obj->parent)
                 return $obj->Calculate();
     }
+    // предварительные операции с входной строкой
+    function parse($str){
+        // подготовка входного выражения к парсингу
+        $str = mb_strtolower($str, 'UTF-8');
+        $str = str_replace(' ', '', $str);
+        $n = mb_strlen($str, 'UTF-8');
+        $arStr = preg_split('/(?!^)(?=.)/u', $str);
+        // преобразуем массив символов в массив слов
+        $j=0;
+        $accum = $arStr[0];
+        for($i=1; $i<$n+1; ++$i){
+            if ($i==$n+1){
+                $arLec[$j] = $accum;
+                break;
+            }
+            if($accum=='-' && $i==1){
+                if(preg_match('/\d/', $arStr[$i])){
+                    $accum = $accum.$arStr[$i];
+                }
+                if($arStr[$i]=='('){
+                    $arLec[$j] = '0';
+                    $arLec[++$j] = '-';
+                    ++$j;
+                    $accum = $arStr[$i];
+                }
+                continue;
+            }
+            if($accum=='-' && $arLec[$j-1]=='('){
+                $accum = $accum.$arStr[$i];
+                continue;
+            }
+            if(!(isset($arStr[$i])&&null!=$arStr[$i]))
+                $arStr[$i]='';
+            if (preg_match('/^[\d.]/', $accum) && preg_match('/^[\d.]/', $arStr[$i])){
+                $accum = $accum.$arStr[$i];
+            }else{
+                $arLec[$j] = $accum;
+                ++$j;
+                $accum = $arStr[$i];
+            }
+        }
+        return $arLec;
+    }
+    // построение узла
+    function objBuild($point){
+        static $arNumNode = Array(
+            'addition' => 1,
+            'subtraction' => 1,
+            'pow' =>1,
+            'multiplication' => 1,
+            'division' => 1,
+            'number' => 1,
+            'constant' => 1);
+        switch ($point){
+            case '+':
+                $name = 'Plus'.$arNumNode['addition'];
+                $node = new Plus($name);
+                ++$arNumNode['addition'];
+                break;
+            case '-':
+                $name = 'Minus'.$arNumNode['subtraction'];
+                $node = new Minus($name);
+                ++$arNumNode['subtraction'];
+                break;
+            case '*':
+                $name = 'Multiply'.$arNumNode['multiplication'];
+                $node = new Multiply($name);
+                ++$arNumNode['multiplication'];
+                break;
+            case '/': $name = 'Fission'.$arNumNode['division'];
+                $node = new Fission($name);
+                ++$arNumNode['division'];
+                break;
+            case '^':
+                $name = 'Pow'.$arNumNode['pow'];
+                $node = new Pow($name);
+                ++$arNumNode['pow'];
+                break;
+            default:
+                if(preg_match("/^[a-z]+$/i", $point)){
+                    $name = 'Constant'.$arNumNode['constant'];
+                    $node = new Constant($name);
+                    $node->const = $point;
+                    $node->var = 0;
+                    ++$arNumNode['constant'];
+                }
+                else{
+                    $name = 'Variable'.$arNumNode['number'];
+                    $node = new Variable($name);
+                    $node->var = $point;
+                    ++$arNumNode['number'];
+                }
+        }
+        return $node;                    
+    }
+    // строительство тройки объектов дерева
+    function trioBuild($topLec, $leftLec, $rightLec, $topP, $leftP, $rightP, $topObj){
+        // вершина
+        if(!$topObj){
+            $topTrio = $this->objBuild($topP);
+            $topTrio->lec = $topLec;
+        }  else
+            $topTrio = $topObj;
+        // левые узлы
+        $leftTrio = $this->objBuild($leftP);
+        $leftTrio->lec = $leftLec;
+        // правые узлы
+        $rightTrio = $this->objBuild($rightP);
+        $rightTrio->lec = $rightLec;
+        // формирование узла
+        $topTrio->childrenLeft = $leftTrio;
+        $topTrio->childrenRight = $rightTrio;
+        $leftTrio->parent = $topTrio;
+        $rightTrio->parent = $topTrio;
+        if(!$topObj){
+            $trio = Array($topTrio, $leftTrio, $rightTrio);
+            return $trio;
+        }  else {
+            $duo = Array($leftTrio, $rightTrio);
+            return $duo;
+        }
+    }
+    // проверка на полное построение дерева
+    function stopBuild($arNode){
+        foreach ($arNode as $obj){
+            if(!(isset($obj->lec[1])&&null!=$obj->lec[1]))
+                $obj->lec[1]='';
+            if(!(isset($obj->childrenLeft)&&null!=$obj->childrenLeft))
+                $obj->childrenLeft='';
+            if(!(isset($obj->childrenRight)&&null!=$obj->childrenRight))
+                $obj->childrenRight='';
+            if($obj->lec[1] && !$obj->childrenLeft && !$obj->childrenRight)
+                return false;
+        }
+        return true;
+    }
+    // поиск вершины для следующего уровня узлов текущей ветки
+    function searchObj($arNode){
+        foreach ($arNode as $obj)
+            if($obj->lec[1] && !$obj->childrenLeft && !$obj->childrenRight)
+                return $obj;
+    }
+    // нахождение оператора
+    function currOperator($lec){
+        $oper=0;
+        $max=0;
+        static $br = 0;
+        static $arPrioritet = Array(
+            '+' => 3,
+            '-' => 3,
+            '*' => 2,
+            '/' => 2,
+            '^' => 1);
+        foreach ($lec as $key=>$value){
+            if(preg_match('/^[\d.]/', $value)){
+                continue;
+            }
+            if($value=='('){
+                ++$br;
+                continue;
+            }
+            if($value==')'){
+                --$br;
+                continue;
+            }
+            if(!(isset($arPrioritet[$value])&&null!=$arPrioritet[$value]))
+                $arPrioritet[$value]='';
+            if($arPrioritet[$value]-3*$br >= $max){
+                $max=$arPrioritet[$value]-3*$br;
+                $oper=$key;
+            }
+        }
+        return $oper;
+    }
     // строительство дерева
     public function Build ($str) {  
         // массив объектов дерева
         $arNode = Array();
-        // предварительные операции с входной строкой
-        function parse ($str){
-            // подготовка входного выражения к парсингу
-            $str = mb_strtolower($str, 'UTF-8');
-            $str = str_replace(' ', '', $str);
-            $n = mb_strlen($str, 'UTF-8');
-            $arStr = preg_split('/(?!^)(?=.)/u', $str);
-            // преобразуем массив символов в массив слов
-            $j=0;
-            $accum = $arStr[0];
-            for($i=1; $i<$n+1; ++$i){
-                if ($i==$n+1){
-                    $arLec[$j] = $accum;
-                    break;
-                }
-                if($accum=='-' && $i==1){
-                    if(preg_match('/\d/', $arStr[$i])){
-                        $accum = $accum.$arStr[$i];
-                    }
-                    if($arStr[$i]=='('){
-                        $arLec[$j] = '0';
-                        $arLec[++$j] = '-';
-                        ++$j;
-                        $accum = $arStr[$i];
-                    }
-                    continue;
-                }
-                if($accum=='-' && $arLec[$j-1]=='('){
-                    $accum = $accum.$arStr[$i];
-                    continue;
-                }
-                if(!(isset($arStr[$i])&&null!=$arStr[$i]))
-                    $arStr[$i]='';
-                if (preg_match('/^[\d.]/', $accum) && preg_match('/^[\d.]/', $arStr[$i])){
-                    $accum = $accum.$arStr[$i];
-                }else{
-                    $arLec[$j] = $accum;
-                    ++$j;
-                    $accum = $arStr[$i];
-                }
-            }
-            return $arLec;
-        }
-        // построение узла
-        function objBuild($point){
-            static $arNumNode = Array(
-                'addition' => 1,
-                'subtraction' => 1,
-                'pow' =>1,
-                'multiplication' => 1,
-                'division' => 1,
-                'number' => 1,
-                'constant' => 1);
-            switch ($point){
-                case '+':
-                    $name = 'Plus'.$arNumNode['addition'];
-                    $node = new Plus($name);
-                    ++$arNumNode['addition'];
-                    break;
-                case '-':
-                    $name = 'Minus'.$arNumNode['subtraction'];
-                    $node = new Minus($name);
-                    ++$arNumNode['subtraction'];
-                    break;
-                case '*':
-                    $name = 'Multiply'.$arNumNode['multiplication'];
-                    $node = new Multiply($name);
-                    ++$arNumNode['multiplication'];
-                    break;
-                case '/': $name = 'Fission'.$arNumNode['division'];
-                    $node = new Fission($name);
-                    ++$arNumNode['division'];
-                    break;
-                case '^':
-                    $name = 'Pow'.$arNumNode['pow'];
-                    $node = new Pow($name);
-                    ++$arNumNode['pow'];
-                    break;
-                default:
-                    if(preg_match("/^[a-z]+$/i", $point)){
-                        $name = 'Constant'.$arNumNode['constant'];
-                        $node = new Constant($name);
-                        $node->const = $point;
-                        $node->var = 0;
-                        ++$arNumNode['constant'];
-                    }
-                    else{
-                        $name = 'Variable'.$arNumNode['number'];
-                        $node = new Variable($name);
-                        $node->var = $point;
-                        ++$arNumNode['number'];
-                    }
-            }
-            return $node;                    
-        }
-        // строительство тройки объектов дерева
-        function trioBuild($topLec, $leftLec, $rightLec, $topP, $leftP, $rightP, $topObj){
-            // вершина
-            if(!$topObj){
-                $topTrio = objBuild($topP);
-                $topTrio->lec = $topLec;
-            }  else
-                $topTrio = $topObj;
-            // левые узлы
-            $leftTrio = objBuild($leftP);
-            $leftTrio->lec = $leftLec;
-            // правые узлы
-            $rightTrio = objBuild($rightP);
-            $rightTrio->lec = $rightLec;
-            // формирование узла
-            $topTrio->childrenLeft = $leftTrio;
-            $topTrio->childrenRight = $rightTrio;
-            $leftTrio->parent = $topTrio;
-            $rightTrio->parent = $topTrio;
-            if(!$topObj){
-                $trio = Array($topTrio, $leftTrio, $rightTrio);
-                return $trio;
-            }  else {
-                $duo = Array($leftTrio, $rightTrio);
-                return $duo;
-            }
-        }
-        // проверка на полное построение дерева
-        function stopBuild($arNode){
-            foreach ($arNode as $obj){
-                if(!(isset($obj->lec[1])&&null!=$obj->lec[1]))
-                    $obj->lec[1]='';
-                if(!(isset($obj->childrenLeft)&&null!=$obj->childrenLeft))
-                    $obj->childrenLeft='';
-                if(!(isset($obj->childrenRight)&&null!=$obj->childrenRight))
-                    $obj->childrenRight='';
-                if($obj->lec[1] && !$obj->childrenLeft && !$obj->childrenRight)
-                    return false;
-            }
-            return true;
-        }
-        // поиск вершины для следующего уровня узлов текущей ветки
-        function searchObj($arNode){
-            foreach ($arNode as $obj)
-                if($obj->lec[1] && !$obj->childrenLeft && !$obj->childrenRight)
-                    return $obj;
-        }
-        // нахождение оператора
-        function currOperator($lec){
-            $oper=0;
-            $max=0;
-            static $br = 0;
-            static $arPrioritet = Array(
-                '+' => 3,
-                '-' => 3,
-                '*' => 2,
-                '/' => 2,
-                '^' => 1);
-            foreach ($lec as $key=>$value){
-                if(preg_match('/^[\d.]/', $value)){
-                    continue;
-                }
-                if($value=='('){
-                    ++$br;
-                    continue;
-                }
-                if($value==')'){
-                    --$br;
-                    continue;
-                }
-                if(!(isset($arPrioritet[$value])&&null!=$arPrioritet[$value]))
-                    $arPrioritet[$value]='';
-                if($arPrioritet[$value]-3*$br >= $max){
-                    $max=$arPrioritet[$value]-3*$br;
-                    $oper=$key;
-                }
-            }
-            return $oper;
-        }
-        $arLec = parse($str);
+        $arLec = $this->parse($str);
         // корень
-        $topN = currOperator($arLec);
+        $topN = $this->currOperator($arLec);
         $topP = $arLec[$topN];
         $leftLec = array_slice($arLec, 0, $topN);
         if(!(isset($leftLec[0])&&null!=$leftLec[0]))
@@ -216,17 +216,17 @@ class Main {
             array_shift($rightLec);
             array_pop($rightLec);
         }
-        $leftN = currOperator($leftLec);
+        $leftN = $this->currOperator($leftLec);
         $leftP = $leftLec[$leftN];
-        $rightN = currOperator($rightLec);
+        $rightN = $this->currOperator($rightLec);
         $rightP = $rightLec[$rightN];                
-        $trio = trioBuild($arLec, $leftLec, $rightLec, $topP, $leftP, $rightP, NULL);
+        $trio = $this->trioBuild($arLec, $leftLec, $rightLec, $topP, $leftP, $rightP, NULL);
         $arNode = $trio;
         // дети
-        while (!stopBuild($arNode)){
-                $topTrio = searchObj($arNode);
+        while (!$this->stopBuild($arNode)){
+                $topTrio = $this->searchObj($arNode);
                 $arLec = $topTrio->lec;
-                $topN = currOperator($arLec);    
+                $topN = $this->currOperator($arLec);    
                 $leftLec = array_slice($arLec, 0, $topN);
                 if($leftLec[0]=='(' && $leftLec[count($leftLec)-1]==')'){
                     array_shift($leftLec);
@@ -237,11 +237,11 @@ class Main {
                     array_shift($rightLec);
                     array_pop($rightLec);
                 }
-                $leftN = currOperator($leftLec);
+                $leftN = $this->currOperator($leftLec);
                 $leftP = $leftLec[$leftN];
-                $rightN = currOperator($rightLec);
+                $rightN = $this->currOperator($rightLec);
                 $rightP = $rightLec[$rightN];                
-                $duo = trioBuild(NULL, $leftLec, $rightLec, NULL, $leftP, $rightP, $topTrio);
+                $duo = $this->trioBuild(NULL, $leftLec, $rightLec, NULL, $leftP, $rightP, $topTrio);
                 $arNode = array_merge($arNode, $duo);
         }
         $this->arNode = $arNode;
