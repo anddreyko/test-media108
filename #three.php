@@ -3,28 +3,15 @@ class Main {
     // массив объектов дерева
     var $arNode = Array();
     // расчет значения с учетом параметров
-    public function Calculate($a, $b, $c){
-        if($a)
+    public function Calculate($var){
+        foreach($var as $k=>$v){
             foreach ($this->arNode as $obj){
-                if($obj->const == 'a'){
-                    $obj->var = $a;
+                if($obj->const == $k){
+                    $obj->var = $v;
                     break;
                 }
             }
-        if($b)
-            foreach ($this->arNode as $obj){
-                if($obj->const == 'b'){
-                    $obj->var = $b;
-                    break;
-                }
-            }
-        if($c)
-            foreach ($this->arNode as $obj){
-                if($obj->const == 'c'){
-                    $obj->var = $c;
-                    break;
-                }
-            }
+        }
         foreach ($this->arNode as $obj)
             if(!$obj->parent)
                 return $obj->Calculate();
@@ -87,15 +74,18 @@ class Main {
                 'number' => 1,
                 'constant' => 1);
             switch ($point){
-                case '+': $name = 'Plus'.$arNumNode['addition'];
+                case '+':
+                    $name = 'Plus'.$arNumNode['addition'];
                     $node = new Plus($name);
                     ++$arNumNode['addition'];
                     break;
-                case '-': $name = 'Minus'.$arNumNode['subtraction'];
+                case '-':
+                    $name = 'Minus'.$arNumNode['subtraction'];
                     $node = new Minus($name);
                     ++$arNumNode['subtraction'];
                     break;
-                case '*': $name = 'Multiply'.$arNumNode['multiplication'];
+                case '*':
+                    $name = 'Multiply'.$arNumNode['multiplication'];
                     $node = new Multiply($name);
                     ++$arNumNode['multiplication'];
                     break;
@@ -103,32 +93,25 @@ class Main {
                     $node = new Fission($name);
                     ++$arNumNode['division'];
                     break;
-                case '^': $name = 'Pow'.$arNumNode['pow'];
+                case '^':
+                    $name = 'Pow'.$arNumNode['pow'];
                     $node = new Pow($name);
                     ++$arNumNode['pow'];
                     break;
-                case 'a': $name = 'Constant'.$arNumNode['constant'];
-                    $node = new Constant($name);
-                    $node->const = 'a';
-                    $node->var = 0;
-                    ++$arNumNode['constant'];
-                    break;
-                case 'b': $name = 'Constant'.$arNumNode['constant'];
-                    $node = new Constant($name);
-                    $node->const = 'b';
-                    $node->var = 0;
-                    ++$arNumNode['constant'];
-                    break;
-                case 'c': $name = 'Constant'.$arNumNode['constant'];
-                    $node = new Constant($name);
-                    $node->const = 'c';
-                    $node->var = 0;
-                    ++$arNumNode['constant'];
-                    break;
-                default: $name = 'Variable'.$arNumNode['number'];
-                    $node = new Variable($name);
-                    $node->var = $point;
-                    ++$arNumNode['number'];
+                default:
+                    if(preg_match("/^[a-z]+$/i", $point)){
+                        $name = 'Constant'.$arNumNode['constant'];
+                        $node = new Constant($name);
+                        $node->const = $point;
+                        $node->var = 0;
+                        ++$arNumNode['constant'];
+                    }
+                    else{
+                        $name = 'Variable'.$arNumNode['number'];
+                        $node = new Variable($name);
+                        $node->var = $point;
+                        ++$arNumNode['number'];
+                    }
             }
             return $node;                    
         }
